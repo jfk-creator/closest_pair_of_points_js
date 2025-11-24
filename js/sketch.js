@@ -15,36 +15,23 @@ const sketch = (p) => {
   
   p.setup = () => {
     p.createCanvas(calc_canvas_size().canvasWidth, calc_canvas_size().canvasHeight);
+    p.noLoop();
   }
   
   p.draw = () => {
-     // Color palette
-      const night     = p.color('#1a1b26');
-      const white     = p.color(229, 240, 244);
-      const red       = p.color('#ff757f');
-      const green     = p.color('#9ece6a');
-      const gold      = p.color('#efb662');
-      const lightBlue = p.color('#7dcfff');
-      const blue      = p.color('#7aa2f7');
-  
-      color_palette= {
-        night: night, 
-        white: white,
-        red: red, 
-        green: green,
-        gold: gold, 
-        lightBlue: lightBlue,
-        blue: blue 
-      }
-  
-      const color_array = [red, green, gold, lightBlue, blue];
-      draw_sunflower(p, color_palette);
+    p.background(0)
+      //draw_sunflower(p, color_palette);
+      start(p, calc_canvas_size(), 10);
   }
 
- p.windowResized = () => {
-  p.resizeCanvas(calc_canvas_size().canvasWidth, calc_canvas_size().canvasHeight);
-  p.frameCount = 0;
-}
+  p.windowResized = () => {
+    p.resizeCanvas(calc_canvas_size().canvasWidth, calc_canvas_size().canvasHeight);
+    p.frameCount = 0;
+  }
+
+  p.mouseClicked = () => {
+    p.draw();
+  }
 }
 
 
