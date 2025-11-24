@@ -21,11 +21,12 @@ const sketch = (p) => {
   p.draw = () => {
     p.background(0)
       //draw_sunflower(p, color_palette);
-      start(p, calc_canvas_size(), 10);
+      start(p, calc_canvas_size());
   }
 
   p.windowResized = () => {
-    p.resizeCanvas(calc_canvas_size().canvasWidth, calc_canvas_size().canvasHeight);
+    const {canvasWidth, canvasHeight} = calc_canvas_size();
+    p.resizeCanvas(canvasWidth, canvasHeight);
     p.frameCount = 0;
   }
 
