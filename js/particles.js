@@ -1,10 +1,12 @@
 
 class Point {
-    x; y; r;
-    constructor(x, y, r){
+    x; y; r; vx; vy;
+    constructor(x, y, vx, vy, r){
         this.x = x; 
         this.y = y;
         this.r = r;
+        this.vx = vx; 
+        this.vy = vy;
     }
 
     static dist(a, b){
@@ -19,7 +21,11 @@ function create_random_points(canvasWidth, canvasHeight, n){
 
     for(let i = 0; i < n; i++){
         const POINT_RADIUS = 8;
-        const point = new Point(Math.random() * canvasWidth, Math.random() * canvasHeight, POINT_RADIUS);
+        let random = Math.random();
+        const vx = random > 0.5 ? (-1 ) * random() * 4 : random() * 4;
+        random = Math.random();
+        const vy = random > 0.5 ? (-1 ) * random() * 4 : random() * 4;
+        const point = new Point(Math.random() * canvasWidth, Math.random() * canvasHeight, vx, vy, POINT_RADIUS);
         point_array.push(point);
     }
 
@@ -44,6 +50,32 @@ function draw_points(p, point_array, rgb) {
             p.fill(rgb.r, rgb.g, rgb.b);
             p.noStroke();
             p.circle(point.x, point.y, point.r);
+        }
+    }
+}
+
+function move_points(point_array){
+    for(let i = 0; i < point_array.length; i++){
+        let point = point_array[i];
+        point.x += point.vx; 
+        point.y += point.vy; 
+
+        console.log(p.Width);
+        if(point.x > p.Width){
+            point.x = p.Width;
+            point.vx *= -1;
+        }
+        if(point.x < 0){
+            point.x = 0;
+            point.vx *= -1;
+        }
+        if(point.y > p.Height){
+            point.y = p.Height;
+            point.vy *= -1;
+        }
+        if(point.y < 0){
+            point.y = 0;
+            point.vy *= -1;
         }
     }
 }
@@ -131,8 +163,8 @@ function closest_pair(px, py, p, prop){
     return {min: min, min_points: min_points};
 }
 
-let point_array = [];
 function start(p, prop){
+    let point_array = [];
     let n = 8;
     if(p.frameCount == 1) point_array = create_random_points(prop.canvasWidth, prop.canvasHeight, n);
     draw_points(p, point_array, {r:255,g:255,b:255});
@@ -147,4 +179,10 @@ function start(p, prop){
     const min_pair = closest_pair(points_x, points_y, p, prop).min_points;
     p.stroke(255,0,0);
     p.line(min_pair[0].x, min_pair[0].y, min_pair[1].x, min_pair[1].y);
+}
+
+function start_particles(p, prop){
+    let n = 200; 
+    const point_array = create_random_points(prop.canvasWidth, prop.canvasHeight, n); 
+    return point_array;
 }

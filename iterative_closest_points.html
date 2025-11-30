@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Closest Pair Algorithm Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Header -->
+    <div class="w-full max-w-5xl mb-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Closest Pair: Divide & Conquer</h1>
+            <p class="text-sm text-gray-600">Visualizing the recursion and strip-combining phase.</p>
+        </div>
+        <div class="flex gap-2">
+            <div id="statusInfo" class="bg-white px-4 py-2 rounded-lg shadow text-sm font-mono text-gray-700 border-l-4 border-blue-500">
+                Ready
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="relative bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200" style="width: 100%; max-width: 1000px; height: 600px;">
+        <canvas id="algoCanvas" class="block w-full h-full"></canvas>
+        
+        <!-- Overlay Info -->
+       <!-- <div class="absolute top-4 left-4 pointer-events-none">
+            <div class="bg-white/90 backdrop-blur-sm p-3 rounded shadow-sm text-xs space-y-2 border border-gray-100">
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-gray-400"></span> <span>Inactive Points</span></div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-600"></span> <span>Active Subset</span></div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border-2 border-green-500"></span> <span>Current Min Dist</span></div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 bg-yellow-300 opacity-50 border border-yellow-600"></span> <span>Search Strip</span></div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500"></span> <span>Comparing</span></div>
+            </div>
+        </div> -->
+    </div>
+
+    <!-- Controls -->
+    <div class="w-full max-w-5xl mt-6 bg-white p-4 rounded-xl shadow-lg flex flex-wrap gap-4 items-center justify-between border border-gray-200">
+        <div class="flex gap-3">
+            <button onclick="reset()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2">
+                <i class="fa-solid fa-arrows-rotate"></i> New Points
+            </button>
+            <div class="h-10 w-px bg-gray-300 mx-1"></div>
+            <button id="btnPlay" onclick="togglePlay()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm shadow-blue-200">
+                <i class="fa-solid fa-play"></i> Play
+            </button>
+            <button onclick="stepForward()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors flex items-center gap-2">
+                <i class="fa-solid fa-forward-step"></i> Step
+            </button>
+        </div>
+
+        <div class="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-lg">
+            <span class="text-sm font-medium text-gray-500">Points:</span>
+            <input type="range" id="pointCount" min="10" max="100" value="40" class="w-24 accent-blue-600" oninput="reset()">
+            <span id="pointCountDisplay" class="text-xs font-mono w-6">40</span>
+            
+            <div class="w-px h-4 bg-gray-300 mx-2"></div>
+            
+            <span class="text-sm font-medium text-gray-500">Speed:</span>
+            <input type="range" id="speedRange" min="1" max="50" value="10" class="w-24 accent-blue-600">
+        </div>
+    </div>
+
+<script>
+/**
+ * Point Class
+ */
+class Point {
+    constructor(x, y, id) {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+    }
+}
+
+// Global State
+let points = [];
+let generator = null;
+let currentVisualState = null;
+let isPlaying = false;
+let timer = null;
+let bestPairGlobal = { p1: null, p2: null, dist: Infinity };
+let solved = false;
+
+// Canvas Setup
+const canvas = document.getElementById('algoCanvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    width = canvas.width;
+    height = canvas.height;
+    if (currentVisualState) draw(currentVisualState);
+}
+window.addEventListener('resize', resize);
+
+/**
+ * UTILS
+ */
+function dist(p1, p2) {
+    return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+}
+
+function updateStatus(text, colorClass = "border-blue-500") {
+    const el = document.getElementById('statusInfo');
+    el.innerText = text;
+    el.className = `bg-white px-4 py-2 rounded-lg shadow text-sm font-mono text-gray-700 border-l-4 ${colorClass}`;
+}
+
+/**
+ * INITIALIZATION
+ */
+function generatePoints(count) {
+    const pts = [];
+    const padding = 40;
+    for(let i=0; i<count; i++) {
+        pts.push(new Point(
+            padding + Math.random() * (width - padding*2),
+            padding + Math.random() * (height - padding*2),
+            i
+        ));
+    }
+    // Sort by X coordinate immediately as pre-requisite
+    return pts.sort((a,b) => a.x - b.x);
+}
+
+function reset() {
+    stop();
+    const count = parseInt(document.getElementById('pointCount').value);
+    document.getElementById('pointCountDisplay').innerText = count;
+    
+    // Set sizes
+    resize();
+    
+    points = generatePoints(count);
+    bestPairGlobal = { p1: null, p2: null, dist: Infinity };
+    solved = false;
+    
+    // Create Generator
+    generator = closestPairRoutine(points);
+    
+    // Initial Draw
+    currentVisualState = {
+        activePoints: points, // All active initially
+        lineX: null,
+        strip: null,
+        comparing: [],
+        highlight: [],
+        message: "Algorithm Ready. Points sorted by X."
+    };
+    draw(currentVisualState);
+    updateStatus("Ready to start");
+    
+    // Update play button
+    const btn = document.getElementById('btnPlay');
+    btn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+    btn.classList.replace('bg-amber-500', 'bg-blue-600');
+    btn.classList.replace('hover:bg-amber-600', 'hover:bg-blue-700');
+}
+
+/**
+ * THE ALGORITHM (GENERATOR)
+ * This turns the recursive algorithm into an iterative stream of states
+ */
+function* closestPairRoutine(subset) {
+    const n = subset.length;
+    
+    // Base Case
+    if (n <= 3) {
+        yield { 
+            activePoints: subset, 
+            message: `Base case (n=${n}): Brute forcing`,
+            highlight: subset 
+        };
+
+        let minD = Infinity;
+        let bestPhair = [];
+        
+        for(let i=0; i<n; i++) {
+            for(let j=i+1; j<n; j++) {
+                let d = dist(subset[i], subset[j]);
+                
+                yield {
+                    activePoints: subset,
+                    comparing: [subset[i], subset[j]],
+                    message: `Checking distance: ${d.toFixed(1)}`,
+                    highlight: subset
+                };
+
+                if (d < minD) {
+                    minD = d;
+                    bestPair = [subset[i], subset[j]];
+                    // Update global best
+                    if (d < bestPairGlobal.dist) {
+                        bestPairGlobal = { p1: subset[i], p2: subset[j], dist: d };
+                    }
+                }
+            }
+        }
+        return { dist: minD, pair: bestPair };
+    }
+
+    // Divide
+    const mid = Math.floor(n / 2);
+    const midPoint = subset[mid];
+    const leftSubset = subset.slice(0, mid);
+    const rightSubset = subset.slice(mid);
+
+    yield {
+        activePoints: subset,
+        lineX: midPoint.x,
+        message: `Splitting at X=${midPoint.x.toFixed(0)}`,
+        highlight: [midPoint] // Highlight the divider
+    };
+
+    // Conquer Left
+    const leftResult = yield* closestPairRoutine(leftSubset);
+    
+    // Conquer Right
+    const rightResult = yield* closestPairRoutine(rightSubset);
+
+    // Merge
+    let d = Math.min(leftResult.dist, rightResult.dist);
+    // Determine which pair is the current local best
+    let minPair = leftResult.dist < rightResult.dist ? leftResult.pair : rightResult.pair;
+
+    yield {
+        activePoints: subset,
+        lineX: midPoint.x,
+        message: `Merging. Current min delta = ${d.toFixed(1)}`,
+        delta: d
+    };
+
+    // Construct Strip
+    // The strip contains points within 'd' distance of the dividing line
+    const strip = [];
+    for(let p of subset) {
+        if (Math.abs(p.x - midPoint.x) < d) {
+            strip.push(p);
+        }
+    }
+
+    // Sort strip by Y (Standard algo step)
+    strip.sort((a,b) => a.y - b.y);
+
+    yield {
+        activePoints: subset,
+        lineX: midPoint.x,
+        strip: { x: midPoint.x, width: d, points: strip },
+        message: `Checking strip (Points sorted by Y)`,
+        delta: d
+    };
+
+    // Check Strip
+    // For each point in strip, check next 7 points (or until d exceeded in Y)
+    let minD = d;
+    
+    for(let i=0; i<strip.length; i++) {
+        for(let j=i+1; j<strip.length && (strip[j].y - strip[i].y) < minD; j++) {
+            const dStrip = dist(strip[i], strip[j]);
+            
+            yield {
+                activePoints: subset,
+                lineX: midPoint.x,
+                strip: { x: midPoint.x, width: d, points: strip },
+                comparing: [strip[i], strip[j]],
+                message: `Checking strip pair. Dist: ${dStrip.toFixed(1)}`,
+                delta: minD
+            };
+
+            if (dStrip < minD) {
+                minD = dStrip;
+                minPair = [strip[i], strip[j]];
+                
+                // Update global best
+                if (minD < bestPairGlobal.dist) {
+                    bestPairGlobal = { p1: strip[i], p2: strip[j], dist: minD };
+                }
+            }
+        }
+    }
+
+    return { dist: minD, pair: minPair };
+}
+
+/**
+ * CONTROL LOGIC
+ */
+function stepForward() {
+    if (!generator || solved) return;
+
+    const res = generator.next();
+    
+    if (res.done) {
+        solved = true;
+        stop();
+        drawFinal();
+        updateStatus("Finished!", "border-green-500");
+        return;
+    }
+
+    currentVisualState = res.value;
+    draw(currentVisualState);
+    updateStatus(currentVisualState.message);
+}
+
+function togglePlay() {
+    if (solved) reset();
+    
+    const btn = document.getElementById('btnPlay');
+    
+    if (isPlaying) {
+        stop();
+    } else {
+        isPlaying = true;
+        btn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
+        btn.classList.replace('bg-blue-600', 'bg-amber-500');
+        btn.classList.replace('hover:bg-blue-700', 'hover:bg-amber-600');
+        loop();
+    }
+}
+
+function stop() {
+    isPlaying = false;
+    clearTimeout(timer);
+    const btn = document.getElementById('btnPlay');
+    btn.innerHTML = '<i class="fa-solid fa-play"></i> Play';
+    btn.classList.replace('bg-amber-500', 'bg-blue-600');
+    btn.classList.replace('hover:bg-amber-600', 'hover:bg-blue-700');
+}
+
+function loop() {
+    if (!isPlaying) return;
+    stepForward();
+    
+    if (!solved) {
+        const speed = parseInt(document.getElementById('speedRange').value);
+        // speed 1 = slow (1000ms), speed 50 = fast (20ms)
+        const delay = 1000 - (speed * 18); 
+        timer = setTimeout(loop, Math.max(20, delay));
+    }
+}
+
+/**
+ * RENDERING
+ */
+function draw(state) {
+    if (!state) return;
+
+    // Clear
+    ctx.clearRect(0, 0, width, height);
+    
+    // 1. Draw Inactive Points (All points as ghosted)
+    ctx.fillStyle = "#e5e7eb"; // gray-200
+    points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+        ctx.fill();
+    });
+
+    // 2. Draw Active Region/Subset Points
+    // If we have a subset, those are "Active"
+    if (state.activePoints) {
+        ctx.fillStyle = "#3b82f6"; // blue-500
+        state.activePoints.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+            ctx.fill();
+        });
+    }
+
+    // 3. Draw Divide Line
+    if (state.lineX !== undefined && state.lineX !== null) {
+        ctx.strokeStyle = "#93c5fd"; // blue-300
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(state.lineX, 0);
+        ctx.lineTo(state.lineX, height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // 4. Draw Strip Region
+    if (state.strip) {
+        const { x, width: w } = state.strip;
+        ctx.fillStyle = "rgba(253, 224, 71, 0.2)"; // yellow-300 transparent
+        ctx.fillRect(x - w, 0, w * 2, height);
+        
+        ctx.strokeStyle = "rgba(234, 179, 8, 0.5)"; // yellow-600
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - w, 0);
+        ctx.lineTo(x - w, height);
+        ctx.moveTo(x + w, 0);
+        ctx.lineTo(x + w, height);
+        ctx.stroke();
+        
+        // Highlight points inside strip
+        if (state.strip.points) {
+            ctx.fillStyle = "#a16207"; // yellow-800
+            state.strip.points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+                ctx.fill();
+            });
+        }
+    }
+
+    // 5. Draw Global Best Pair so far
+    if (bestPairGlobal.p1 && bestPairGlobal.p2) {
+        ctx.strokeStyle = "#22c55e"; // green-500
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(bestPairGlobal.p1.x, bestPairGlobal.p1.y);
+        ctx.lineTo(bestPairGlobal.p2.x, bestPairGlobal.p2.y);
+        ctx.stroke();
+
+        // Draw circle around them
+        ctx.fillStyle = "#22c55e";
+        [bestPairGlobal.p1, bestPairGlobal.p2].forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+            ctx.fill();
+        });
+    }
+
+    // 6. Draw Comparison
+    if (state.comparing && state.comparing.length === 2) {
+        const [p1, p2] = state.comparing;
+        ctx.strokeStyle = "#ef4444"; // red-500
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        
+        ctx.fillStyle = "#ef4444";
+        [p1, p2].forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+            ctx.fill();
+        });
+    }
+}
+
+function drawFinal() {
+    ctx.clearRect(0, 0, width, height);
+    
+    // Draw all normal
+    ctx.fillStyle = "#9ca3af";
+    points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+        ctx.fill();
+    });
+
+    // Highlight winner
+    if (bestPairGlobal.p1 && bestPairGlobal.p2) {
+        const { p1, p2, dist } = bestPairGlobal;
+        
+        // Line
+        ctx.strokeStyle = "#22c55e";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+
+        // Points
+        ctx.fillStyle = "#16a34a"; // green-600
+        [p1, p2].forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
+            ctx.fill();
+        });
+
+        // Text
+        ctx.fillStyle = "#000";
+        ctx.font = "16px monospace";
+        ctx.fillText(`Distance: ${dist.toFixed(2)}`, (p1.x+p2.x)/2 + 10, (p1.y+p2.y)/2 - 10);
+    }
+}
+
+// Start
+resize();
+reset();
+
+</script>
+</body>
+</html>
