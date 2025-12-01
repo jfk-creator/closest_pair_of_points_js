@@ -1,9 +1,35 @@
 let p_array = [];
-const PARTICLE_RADIUS = 5; // Increased size for better visibility
-const NUMBER_OF_PARTICLES = 12000;
+let DRAG = 0.99;
+let PARTICLE_RADIUS = 5; // Increased size for better visibility
+let NUMBER_OF_PARTICLES = 120;
+let STICKINESS = 0.4;
+let CPOP = true;
+const FACTOR = 5;
+const CANVAS_FACTOR = 0.65;
+
+function update_particle_count(el){
+  NUMBER_OF_PARTICLES = el.value;
+  p_array = start_particles();
+}
+
+function set_particle_radius(el){
+  PARTICLE_RADIUS = el.value;
+  p_array = start_particles();
+}
+function set_particle_stickiness(el){
+  STICKINESS = el.value;
+  p_array = start_particles();
+}
+function set_particle_drag(el){
+  DRAG = el.value;
+  p_array = start_particles();
+}
+function toggle_cpop(el){
+  CPOP = el.checked;
+}
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  createCanvas(windowWidth, windowHeight*CANVAS_FACTOR);
   p_array = start_particles();
 }
 
@@ -11,14 +37,18 @@ let FRAMES = 0;
 function draw() {
   background(20);
   move_points(p_array);
-  //resolve_collisions(p_array); // New function here
-  collision_closest_pair(p_array);
+  if(!CPOP) resolve_collisions(p_array); // New function here
+  if(CPOP) collision_closest_pair(p_array);
   draw_points(p_array);
-  if(frameCount % 20 == 0) FRAMES = frameRate();
+  if(frameCount % 10 == 0) FRAMES = frameRate();
   fill(250);
   textSize(20);
   text(Math.floor(FRAMES), 20, 40);
   apply_mouse_attraction(p_array);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight*CANVAS_FACTOR);
 }
 
 function apply_mouse_attraction(point_array) {
@@ -27,7 +57,7 @@ function apply_mouse_attraction(point_array) {
     return;
   }
 
-  const ATTRACTION_STRENGTH = 0.2; // How strong the magnet is
+  const ATTRACTION_STRENGTH = 0.5; // How strong the magnet is
   
   for (let i = 0; i < point_array.length; i++) {
     let point = point_array[i];
@@ -123,6 +153,9 @@ function resolve_collisions(point_array) {
         p1.vy += impulseY;
         p2.vx -= impulseX;
         p2.vy -= impulseY;
+
+        p1.vx *= STICKINESS;
+        p2.vx *= STICKINESS;
       }
     }
   }
@@ -198,12 +231,13 @@ function move_points(point_array) {
     let point = point_array[i];
     point.x += point.vx;
     point.y += point.vy;
-    point.vy += 0.3;
-    point.vy *= 0.99;
-    point.vx *= 0.99;
+    point.vy += 0.2;
+    point.vy *= DRAG;
+    point.vx *= DRAG;
 
-    if(Math.abs(point.vy) < .05) point.vy = 0;
-    if(Math.abs(point.vx) < .05) point.vx = 0;
+    const EPSILON = 0.05;
+    if(Math.abs(point.vy) < EPSILON) point.vy = 0;
+    if(Math.abs(point.vx) < EPSILON) point.vx = 0;
 
     // Fixed: Account for radius at edges to prevent sticking
     let radius = point.r / 2;
@@ -245,9 +279,9 @@ function create_random_points(canvasWidth, canvasHeight, n) {
   const point_array = [];
   for (let i = 0; i < n; i++) {
     let random = Math.random();
-    const vx = random > 0.5 ? -1 * random * 2 : random * 2;
+    const vx = random > 0.5 ? -1 * random * FACTOR : random * FACTOR;
     random = Math.random();
-    const vy = random > 0.5 ? -1 * random * 2 : random * 2;
+    const vy = random > 0.5 ? -1 * random * FACTOR : random * FACTOR;
     const point = new Point(
       Math.random() * canvasWidth,
       Math.random() * canvasHeight/3,
@@ -272,10 +306,9 @@ function draw_points(point_array) {
     // Map speed to Hue
     // Speed 0 -> 240 (Blue)
     // Speed 8 -> 0   (Red)
-    let hue = map(speed, 0, 8, 240, 0, true); 
-    
+    let hue = map(speed, 0, 13, 8, 280, true); 
     // Map speed to Saturation (Optional: faster items are more vivid)
-    let sat = map(speed, 0, 8, 70, 100);
+    let sat = 100
 
     fill(hue, sat, 100);
     circle(point.x, point.y, point.r);

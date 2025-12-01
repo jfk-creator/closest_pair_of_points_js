@@ -3,11 +3,34 @@ html, body {
   padding: 0;
   background-color: black;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
+  color: white;
+  font-family: 'Urbanist';
 }
+
+.header {
+  display: block;
+  float: left;
+  margin-left: 50px;
+  display: flex; 
+  align-items: center;
+  gap: 15px;
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  input {
+    height: 1.5rem;
+    font-size: 1.2rem;
+    width: 5rem;
+  }
+}
+
+
 
 canvas {
   display: block;

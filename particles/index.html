@@ -4,15 +4,38 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Sketch</title>
+    <title>CPOP Particles</title>
 
     <link rel="stylesheet" type="text/css" href="style.css">
-
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
     <script src="libraries/p5.min.js"></script>
     <script src="libraries/p5.sound.min.js"></script>
   </head>
 
   <body>
+    <div>
+
+      <div class="header">
+        <h2>Particle Count:</h2>
+        <input onchange="update_particle_count(this)" value="120" type="number" min="1" step="1000"/>
+      </div>
+      <div class="header">
+        <h2>Particle Size:</h2>
+        <input onchange="set_particle_radius(this)" value="5" type="number" min="0.1" />
+      </div>
+       <div class="header">
+        <h2>Particle Stickiness:</h2>
+        <input onchange="set_particle_stickiness(this)" value="0.4" type="number" max="1" min="0" step="0.1"/>
+      </div>
+      <div class="header">
+        <h2>Particle Drag:</h2>
+        <input onchange="set_particle_drag(this)" value="0.99" type="number" min="0" step="0.01"/>
+      </div>
+      <div class="header">
+        <h2>Use CPOP:</h2>
+        <input onchange="toggle_cpop(this)" type="checkbox" checked="checked"/>
+      </div>
+    </div>
     <script src="sketch.js"></script>
   </body>
 </html>
